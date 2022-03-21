@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="7656e2ee-68fd-461b-adb3-557fb846a6cc" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="8747608b-8287-442e-83bb-cb98734e2564" >
+		<salesforce:basic-connection username="dheeraj@infosys.com" password="CopycaT@09" securityToken="NxAWmDGixB3dFxTY5avcOLMi" />
+	</salesforce:sfdc-config>
+	<flow name="salesforceFlow" doc:id="bc4c96ab-b678-4fd4-b5c9-9e5d10fdf543" >
+		<http:listener doc:name="Listener" doc:id="1a73e47a-1d3a-4ba2-b882-45b5efedf229" config-ref="HTTP_Listener_config" path="/sales/{id}"/>
+		<salesforce:query doc:name="Query" doc:id="63d9e863-f0ff-4706-bbd5-681382210f0c" config-ref="Salesforce_Config">
+			<salesforce:salesforce-query ><![CDATA[select trainee_ID__c,trainee_email__c,Name,trainee_stream__c from training__c where trainee_ID__c=':id']]></salesforce:salesforce-query>
+			<salesforce:parameters ><![CDATA[#[%dw 2.0
+output application/java
+---
+{
+	id: attributes.uriParams.id
+}]]]></salesforce:parameters>
+		</salesforce:query>
+		<ee:transform doc:name="Transform Message" doc:id="49b0b5fd-2ad7-449a-923e-5eefef991f91" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload map{
+	employeeName: $.Name,
+	traineeID: $.trainee_ID__c,
+	traineeEmailID: $.trainee_email__c,
+	traineeStream: $.trainee_stream__c
+	}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="salesforceFlow1" doc:id="8ce1786d-c0a2-490b-a9bf-fa45431910c1" >
+		<http:listener doc:name="Listener" doc:id="fd03d6af-46e1-4c3f-ae4b-b99a0927a71d" config-ref="HTTP_Listener_config" path="/sales/post"/>
+		<ee:transform doc:name="Transform Message" doc:id="b44b139d-92f1-4a9b-ab94-a170a20b364d" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+[{
+	Name: payload.name,
+	trainee_email__c: payload.emailID,
+	trainee_stream__c: payload.Stream
+}]]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<salesforce:create type="training__c" doc:name="Create" doc:id="c211e4fe-5587-499b-831e-8aa7d710bda7" config-ref="Salesforce_Config"/>
+		<ee:transform doc:name="Transform Message" doc:id="8e46f1f7-ba11-4a0f-a3d3-b7810df8e8a3" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+"Data Inserted Successfully"]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>
